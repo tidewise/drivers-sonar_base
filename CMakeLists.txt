@@ -6,8 +6,9 @@ project(sonar_base
         DESCRIPTION "")
 find_package(Rock)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 rock_init()
+rock_opencv_autodetect(OPENCV_PACKAGE)
 rock_standard_layout()
