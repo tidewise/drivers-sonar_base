@@ -12,6 +12,14 @@ namespace sonar_base {
      */
     class SonarToImageLUT {
     public:
+        SonarToImageLUT() = delete;
+        SonarToImageLUT(size_t bin_count,
+            size_t beam_count,
+            base::Angle beam_width,
+            double bin_duration,
+            double speed_of_sound,
+            size_t window_size,
+            std::vector<base::Angle> const& bearings);
         static std::vector<std::vector<cv::Point>> computeRawLUTTable(size_t bin_count,
             size_t beam_count,
             base::Angle beam_width,
@@ -50,6 +58,10 @@ namespace sonar_base {
             size_t bin_count,
             size_t beam_count,
             std::vector<std::vector<cv::Point>>& table);
+        void linearizeRawTable(std::vector<std::vector<cv::Point>> const& raw_table);
+    private:
+        std::vector<cv::Point> m_data;
+        std::vector<int> m_data_index;
     };
 }
 

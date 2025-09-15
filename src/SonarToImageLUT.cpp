@@ -2,6 +2,26 @@
 #include <sonar_base/SonarToImageLUT.hpp>
 
 using namespace sonar_base;
+using namespace std;
+using namespace cv;
+
+SonarToImageLUT::SonarToImageLUT(size_t bin_count,
+    size_t beam_count,
+    base::Angle beam_width,
+    double bin_duration,
+    double speed_of_sound,
+    size_t window_size,
+    std::vector<base::Angle> const& bearings)
+{
+    auto raw_table = computeRawLUTTable(bin_count,
+        beam_count,
+        beam_width,
+        bin_duration,
+        speed_of_sound,
+        window_size,
+        bearings);
+    linearizeRawTable(raw_table);
+}
 
 static double computeChord(double range,
     int beam_count,
@@ -162,4 +182,17 @@ void SonarToImageLUT::addRawLUTEntry(std::vector<std::vector<cv::Point>>& table,
     if (idx < bin_count * beam_count) {
         table[beam_idx * bin_count + bin_idx].push_back(point);
     }
+}
+
+void SonarToImageLUT::linearizeRawTable(std::vector<std::vector<cv::Point>> const& table)
+{
+    m_data_index.resize(table.size() + 1);
+    m_data.clear();
+    for (size_t idx = 0; idx < table.size(); idx++) {
+        m_data_index[idx] = m_data.size();
+        for (size_t point_id = 0; point_id < table[idx].size(); point_id++) {
+            m_data.push_back(table[idx][point_id]);
+        }
+    }
+    m_data_index[table.size()] = m_data.size();
 }
