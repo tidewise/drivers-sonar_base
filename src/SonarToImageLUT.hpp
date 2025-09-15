@@ -2,6 +2,7 @@
 #define SONAR_BASE_SONARTOIMAGELUT_HPP
 
 #include <base/Angle.hpp>
+#include <base/samples/Sonar.hpp>
 #include <opencv2/core.hpp>
 #include <vector>
 
@@ -13,24 +14,26 @@ namespace sonar_base {
     class SonarToImageLUT {
     public:
         SonarToImageLUT() = delete;
-        SonarToImageLUT(size_t bin_count,
-            size_t beam_count,
-            base::Angle beam_width,
-            double bin_duration,
-            double speed_of_sound,
-            size_t window_size,
-            std::vector<base::Angle> const& bearings);
-        static std::vector<std::vector<cv::Point>> computeRawLUTTable(size_t bin_count,
-            size_t beam_count,
-            base::Angle beam_width,
-            double bin_duration,
-            double speed_of_sound,
-            size_t window_size,
-            std::vector<base::Angle> const& bearings);
-        /**
-         * @brief Returns the angle of the point relative to the sonar orign in nwu
-         *
-         */
+        SonarToImageLUT(base::samples::Sonar const& sonar, size_t window_size);
+        bool hasMatchingConfiguration(base::samples::Sonar const& sonar,
+            size_t window_size);
+        std::vector<std::vector<cv::Point>> computeRawLUTTable() const;
+        void updateImage(cv::Mat& image,
+            size_t gloabal_idx,
+            int value,
+            size_t bin_count) const;
+
+    private:
+        std::vector<cv::Point> m_data;
+        std::vector<int> m_data_index;
+        size_t m_bin_count;
+        size_t m_beam_count;
+        base::Angle m_beam_width;
+        double m_bin_duration;
+        double m_speed_of_sound;
+        size_t m_window_size;
+        std::vector<base::Angle> m_bearings;
+
         static void addRawLUTEntry(std::vector<std::vector<cv::Point>>& table,
             size_t beam_idx,
             size_t bin_idx,
@@ -57,11 +60,11 @@ namespace sonar_base {
             double step_angle,
             size_t bin_count,
             size_t beam_count,
-            std::vector<std::vector<cv::Point>>& table);
+            std::vector<std::vector<cv::Point>>& lut);
         void linearizeRawTable(std::vector<std::vector<cv::Point>> const& raw_table);
-    private:
-        std::vector<cv::Point> m_data;
-        std::vector<int> m_data_index;
+        std::pair<std::vector<cv::Point>::const_iterator,
+            std::vector<cv::Point>::const_iterator>
+        getPixels(int beam_idx, int bin_idx, size_t bin_count) const;
     };
 }
 

@@ -5,21 +5,16 @@ using namespace sonar_base;
 using namespace std;
 using namespace cv;
 
-SonarToImageLUT::SonarToImageLUT(size_t bin_count,
-    size_t beam_count,
-    base::Angle beam_width,
-    double bin_duration,
-    double speed_of_sound,
-    size_t window_size,
-    std::vector<base::Angle> const& bearings)
+SonarToImageLUT::SonarToImageLUT(base::samples::Sonar const& sonar, size_t window_size)
+    : m_bin_count(sonar.bin_count)
+    , m_beam_count(sonar.beam_count)
+    , m_beam_width(sonar.beam_width)
+    , m_bin_duration(sonar.bin_duration.toSeconds())
+    , m_speed_of_sound(sonar.speed_of_sound)
+    , m_window_size(window_size)
+    , m_bearings(sonar.bearings)
 {
-    auto raw_table = computeRawLUTTable(bin_count,
-        beam_count,
-        beam_width,
-        bin_duration,
-        speed_of_sound,
-        window_size,
-        bearings);
+    auto raw_table = computeRawLUTTable();
     linearizeRawTable(raw_table);
 }
 
@@ -63,34 +58,27 @@ size_t SonarToImageLUT::binPosition(cv::Point const& point2origin,
     return round(distance / bin_length);
 }
 
-std::vector<std::vector<cv::Point>> SonarToImageLUT::computeRawLUTTable(size_t bin_count,
-    size_t beam_count,
-    base::Angle beam_width,
-    double bin_duration,
-    double speed_of_sound,
-    size_t window_size,
-    std::vector<base::Angle> const& bearings)
+std::vector<std::vector<cv::Point>> SonarToImageLUT::computeRawLUTTable() const
 {
     std::vector<std::vector<cv::Point>> raw_lut;
-    raw_lut.resize(bin_count * beam_count);
-    double half_beam_width = beam_width.getRad() / 2;
-    double range = bin_duration * bin_count * speed_of_sound;
-    double chord = computeChord(range, beam_count, bearings, beam_width);
-    double bin_length = range / bin_count;
+    raw_lut.resize(m_bin_count * m_beam_count);
+    double half_beam_width = m_beam_width.getRad() / 2;
+    double range = m_bin_duration * m_bin_count * m_speed_of_sound;
+    double chord = computeChord(range, m_beam_count, m_bearings, m_beam_width);
+    double bin_length = range / m_bin_count;
     double step_angle =
-        ((bearings.back() - bearings.front()).getRad()) / (beam_count - 1);
-    
+        ((m_bearings.back() - m_bearings.front()).getRad()) / (m_beam_count - 1);
     size_t width = 0;
     size_t height = 0;
     double distance_per_pixel = 0;
     if (range >= chord) {
-        distance_per_pixel = range / window_size;
+        distance_per_pixel = range / m_window_size;
         width = chord / distance_per_pixel;
-        height = window_size;
+        height = m_window_size;
     }
     else {
-        distance_per_pixel = chord / window_size;
-        width = window_size;
+        distance_per_pixel = chord / m_window_size;
+        width = m_window_size;
         height = range / distance_per_pixel;
     }
     cv::Point beam_origin = cv::Point(width / 2, height);
@@ -102,10 +90,10 @@ std::vector<std::vector<cv::Point>> SonarToImageLUT::computeRawLUTTable(size_t b
                 distance_per_pixel,
                 bin_length,
                 half_beam_width,
-                bearings,
+                m_bearings,
                 step_angle,
-                bin_count,
-                beam_count,
+                m_bin_count,
+                m_beam_count,
                 raw_lut);
         }
     }
@@ -121,7 +109,7 @@ void SonarToImageLUT::updateLUT(cv::Point const& point,
     double step_angle,
     size_t bin_count,
     size_t beam_count,
-    std::vector<std::vector<cv::Point>>& table)
+    std::vector<std::vector<cv::Point>>& lut)
 {
     auto point2origin = point - origin;
 
@@ -133,7 +121,7 @@ void SonarToImageLUT::updateLUT(cv::Point const& point,
         beamIndexRange(point2origin, half_beam_width, bearings[0], step_angle, bearings);
     if (beam_idx_range.has_value()) {
         for (int idx = beam_idx_range->first; idx <= beam_idx_range->second; idx++) {
-            addRawLUTEntry(table, idx, bin_position, bin_count, point, beam_count);
+            addRawLUTEntry(lut, idx, bin_position, bin_count, point, beam_count);
         }
     }
 }
@@ -195,4 +183,63 @@ void SonarToImageLUT::linearizeRawTable(std::vector<std::vector<cv::Point>> cons
         }
     }
     m_data_index[table.size()] = m_data.size();
+}
+
+void SonarToImageLUT::updateImage(cv::Mat& image,
+    size_t global_idx,
+    int value,
+    size_t bin_count) const
+{
+    size_t beam_idx = global_idx / bin_count;
+    size_t bin_idx = global_idx % bin_count;
+    if (value < 0) {
+        value = 0;
+    }
+    auto its = getPixels(beam_idx, bin_idx, bin_count);
+    for (auto [pixel, last_pixel] = its; pixel != last_pixel; pixel++) {
+        auto& current = image.at<Vec3b>(*pixel);
+        // todo value is between 0 and 1, scale to 255
+        auto v = std::max<int>(current[0], value);
+        current = Vec3b(v, v, v);
+    }
+}
+
+pair<vector<Point>::const_iterator, vector<Point>::const_iterator> SonarToImageLUT::
+    getPixels(int beam_idx, int bin_idx, size_t bin_count) const
+{
+    int pixels_begin = m_data_index[beam_idx * bin_count + bin_idx];
+    int pixels_end = m_data_index[beam_idx * bin_count + bin_idx + 1];
+    return std::make_pair(m_data.cbegin() + pixels_begin, m_data.cbegin() + pixels_end);
+}
+
+static bool bearingsMatch(std::vector<base::Angle> const& new_bearings,
+    std::vector<base::Angle> const& old_bearings);
+
+bool SonarToImageLUT::hasMatchingConfiguration(base::samples::Sonar const& sonar,
+    size_t window_size)
+{
+    if (!(sonar.bin_count == m_bin_count && sonar.beam_count == m_beam_count &&
+            sonar.beam_width == m_beam_width &&
+            sonar.bin_duration.toSeconds() == m_bin_duration &&
+            sonar.speed_of_sound == m_speed_of_sound && window_size == m_window_size)) {
+        return false;
+    }
+    if (!bearingsMatch(sonar.bearings, m_bearings)) {
+        return false;
+    }
+    return true;
+}
+
+static bool bearingsMatch(std::vector<base::Angle> const& new_bearings,
+    std::vector<base::Angle> const& old_bearings)
+{
+    if (new_bearings.size() != old_bearings.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < old_bearings.size(); i++) {
+        if (!(new_bearings[i] == old_bearings[i])) {
+            return false;
+        }
+    }
+    return true;
 }
