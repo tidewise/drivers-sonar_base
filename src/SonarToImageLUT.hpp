@@ -8,7 +8,7 @@
 
 namespace sonar_base {
     /**
-     * @brief TODO DOCUMENT
+     * @brief Look up table to render sonar data
      *
      */
     class SonarToImageLUT {
