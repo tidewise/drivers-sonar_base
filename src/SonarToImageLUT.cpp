@@ -58,7 +58,7 @@ size_t SonarToImageLUT::binPosition(cv::Point const& point2origin,
     return round(distance / bin_length);
 }
 
-std::vector<std::vector<cv::Point>> SonarToImageLUT::computeRawLUTTable() const
+std::vector<std::vector<cv::Point>> SonarToImageLUT::computeRawLUTTable()
 {
     std::vector<std::vector<cv::Point>> raw_lut;
     raw_lut.resize(m_bin_count * m_beam_count);
@@ -68,23 +68,21 @@ std::vector<std::vector<cv::Point>> SonarToImageLUT::computeRawLUTTable() const
     double bin_length = range / m_bin_count;
     double step_angle =
         ((m_bearings.back() - m_bearings.front()).getRad()) / (m_beam_count - 1);
-    size_t width = 0;
-    size_t height = 0;
     double distance_per_pixel = 0;
     if (range >= chord) {
         distance_per_pixel = range / m_window_size;
-        width = chord / distance_per_pixel;
-        height = m_window_size;
+        m_window_width = chord / distance_per_pixel;
+        m_window_height = m_window_size;
     }
     else {
         distance_per_pixel = chord / m_window_size;
-        width = m_window_size;
-        height = range / distance_per_pixel;
+        m_window_width = m_window_size;
+        m_window_height = range / distance_per_pixel;
     }
-    cv::Point beam_origin = cv::Point(width / 2, height);
+    cv::Point beam_origin = cv::Point(m_window_width / 2, m_window_height);
 
-    for (size_t x = 0; x < width; x++) {
-        for (size_t y = 0; y < height; y++) {
+    for (size_t x = 0; x < m_window_width; x++) {
+        for (size_t y = 0; y < m_window_height; y++) {
             updateLUT(cv::Point(x, y),
                 beam_origin,
                 distance_per_pixel,
@@ -242,4 +240,14 @@ static bool bearingsMatch(std::vector<base::Angle> const& new_bearings,
         }
     }
     return true;
+}
+
+size_t SonarToImageLUT::getWindowHeight()
+{
+    return m_window_height;
+}
+
+size_t SonarToImageLUT::getWindowWidth()
+{
+    return m_window_width;
 }

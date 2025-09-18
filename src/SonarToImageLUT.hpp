@@ -17,11 +17,13 @@ namespace sonar_base {
         SonarToImageLUT(base::samples::Sonar const& sonar, size_t window_size);
         bool hasMatchingConfiguration(base::samples::Sonar const& sonar,
             size_t window_size);
-        std::vector<std::vector<cv::Point>> computeRawLUTTable() const;
+        std::vector<std::vector<cv::Point>> computeRawLUTTable();
         void updateImage(cv::Mat& image,
             size_t gloabal_idx,
             int value,
             size_t bin_count) const;
+        size_t getWindowHeight();
+        size_t getWindowWidth();
 
     private:
         std::vector<cv::Point> m_data;
@@ -32,6 +34,8 @@ namespace sonar_base {
         double m_bin_duration;
         double m_speed_of_sound;
         size_t m_window_size;
+        size_t m_window_width;
+        size_t m_window_height;
         std::vector<base::Angle> m_bearings;
 
         static void addRawLUTEntry(std::vector<std::vector<cv::Point>>& table,
