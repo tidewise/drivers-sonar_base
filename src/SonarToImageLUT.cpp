@@ -23,9 +23,9 @@ static double computeChord(double range,
     std::vector<base::Angle> const& bearings,
     base::Angle const& beam_width)
 {
-    auto fov = bearings.front() - bearings.back() +
-               base::Angle::fromRad(abs(beam_width.getRad()));
-    return abs(2 * range * sin(fov.getRad() / 2));
+    auto fov =
+        abs((bearings.front() - bearings.back()).getRad()) + (abs(beam_width.getRad()));
+    return abs(2 * range * sin(fov / 2));
 }
 
 size_t SonarToImageLUT::closestBeamIdx(base::Angle const& angle,
