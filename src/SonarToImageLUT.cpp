@@ -196,7 +196,6 @@ void SonarToImageLUT::updateImage(cv::Mat& image,
     auto its = getPixels(beam_idx, bin_idx, bin_count);
     for (auto [pixel, last_pixel] = its; pixel != last_pixel; pixel++) {
         auto& current = image.at<Vec3b>(*pixel);
-        // todo value is between 0 and 1, scale to 255
         auto v = std::max<int>(current[0], value);
         current = Vec3b(v, v, v);
     }
@@ -216,16 +215,14 @@ static bool bearingsMatch(std::vector<base::Angle> const& new_bearings,
 bool SonarToImageLUT::hasMatchingConfiguration(base::samples::Sonar const& sonar,
     size_t window_size)
 {
-    if (!(sonar.bin_count == m_bin_count && sonar.beam_count == m_beam_count &&
-            sonar.beam_width == m_beam_width &&
-            sonar.bin_duration.toSeconds() == m_bin_duration &&
-            sonar.speed_of_sound == m_speed_of_sound && window_size == m_window_size)) {
-        return false;
+    if (sonar.bin_count == m_bin_count && sonar.beam_count == m_beam_count &&
+        sonar.beam_width == m_beam_width &&
+        sonar.bin_duration.toSeconds() == m_bin_duration &&
+        sonar.speed_of_sound == m_speed_of_sound && window_size == m_window_size &&
+        bearingsMatch(sonar.bearings, m_bearings)) {
+        return true;
     }
-    if (!bearingsMatch(sonar.bearings, m_bearings)) {
-        return false;
-    }
-    return true;
+    return false;
 }
 
 static bool bearingsMatch(std::vector<base::Angle> const& new_bearings,
