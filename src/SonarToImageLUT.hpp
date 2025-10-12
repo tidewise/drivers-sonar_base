@@ -4,6 +4,7 @@
 #include <base/Angle.hpp>
 #include <base/samples/Sonar.hpp>
 #include <opencv2/core.hpp>
+#include <optional>
 #include <vector>
 
 namespace sonar_base {
