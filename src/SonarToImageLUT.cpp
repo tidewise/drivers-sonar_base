@@ -29,10 +29,18 @@ static double computeChord(double range,
 }
 
 size_t SonarToImageLUT::closestBeamIdx(base::Angle const& angle,
-    double angle_resolution,
-    base::Angle const& initial_angle)
+    std::vector<base::Angle> const& bearings)
 {
-    return round(abs((angle - initial_angle).getRad()) / angle_resolution);
+    double delta_min = std::numeric_limits<double>::max();
+    size_t idx = 0;
+    for (size_t i = 0; i < bearings.size(); i++) {
+        double delta = abs((bearings[i] - angle).rad);
+        if (delta < delta_min) {
+            delta_min = delta;
+            idx = i;
+        }
+    }
+    return idx;
 }
 
 static bool insideBeam(size_t idx,
@@ -40,7 +48,7 @@ static bool insideBeam(size_t idx,
     std::vector<base::Angle> const& bearings,
     double half_beam_width)
 {
-    if (idx >= bearings.size()) {
+    if (idx >= bearings.size() || idx < 0) {
         return false;
     }
 
@@ -136,7 +144,7 @@ std::optional<std::pair<int, int>> SonarToImageLUT::beamIndexRange(cv::Point con
 
     double theta_rad = atan2(point2origin_nwu.y, point2origin_nwu.x);
     auto theta = base::Angle::fromRad(theta_rad);
-    int closest_beam_idx = closestBeamIdx(theta, angle_step, initial_angle);
+    int closest_beam_idx = closestBeamIdx(theta, bearings);
 
     if (!insideBeam(closest_beam_idx, theta, bearings, half_beam_width)) {
         return std::nullopt;
