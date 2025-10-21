@@ -49,8 +49,7 @@ namespace sonar_base {
             double distance_per_pixel,
             double bin_length);
         static size_t closestBeamIdx(base::Angle const& angle,
-            double angle_resolution,
-            base::Angle const& initial_angle);
+            std::vector<base::Angle> const& bearings);
         static std::optional<std::pair<int, int>> beamIndexRange(cv::Point const& point,
             double half_beam_width,
             base::Angle const& initial_angle,
