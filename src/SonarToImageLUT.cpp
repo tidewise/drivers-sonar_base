@@ -48,7 +48,7 @@ static bool insideBeam(size_t idx,
     std::vector<base::Angle> const& bearings,
     double half_beam_width)
 {
-    if (idx >= bearings.size() || idx < 0) {
+    if (idx >= bearings.size()) {
         return false;
     }
 
